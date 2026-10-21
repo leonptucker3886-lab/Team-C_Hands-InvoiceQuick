@@ -1,0 +1,18 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>InvoiceQuick</title>
+<style>body{font-family:system-ui,sans-serif;background:#FAFAF9;color:#18181B;max-width:860px;margin:2rem auto;padding:0 1rem}h1{color:#2A78D6}input,textarea,button{padding:.4rem;font-size:1rem;font:inherit}button{background:#2A78D6;color:#fff;border:0;border-radius:6px;cursor:pointer;padding:.5rem 1rem}.row{display:flex;gap:1rem;flex-wrap:wrap}.row>div{flex:1;min-width:240px}textarea{width:100%;height:70px}table{width:100%;border-collapse:collapse;margin:1rem 0}td,th{border-bottom:1px solid #DEDDD8;padding:.4rem;text-align:left}td input{width:100%}.tot{text-align:right;font-size:1.1rem}@media print{.noprint{display:none}input,textarea{border:0;resize:none}}</style></head><body>
+<h1>Invoice</h1>
+<div class="row"><div><label>Invoice # <input id="num" value="INV-001"></label></div><div><label>Date <input type="date" id="date"></label> <label>Due <input type="date" id="due"></label></div></div>
+<div class="row"><div><b>From</b><textarea id="from" placeholder="Your name / business, address"></textarea></div><div><b>Bill to</b><textarea id="to" placeholder="Client name, address"></textarea></div></div>
+<table><thead><tr><th>Description</th><th>Qty</th><th>Rate</th><th>Amount</th><th class="noprint"></th></tr></thead><tbody id="items"></tbody></table>
+<button class="noprint" onclick="addRow()">+ Add line</button>
+<div class="tot">Subtotal: <span id="sub">0.00</span><br>Tax % <input id="tax" type="number" value="0" style="width:60px" oninput="calc()"> : <span id="taxv">0.00</span><br><b>Total: <span id="total">0.00</span></b> <input id="cur" value="$" style="width:40px" oninput="calc()"></div>
+<b>Notes</b><textarea id="notes" placeholder="Payment terms, bank details"></textarea>
+<p class="noprint"><button onclick="window.print()">Export PDF</button> <button onclick="save()">Save</button> <button onclick="if(confirm('Clear?')){localStorage.removeItem(K);location.reload()}">New</button></p>
+<script>
+const K='invoicequick.v1',$=i=>document.getElementById(i),F=['num','date','due','from','to','tax','cur','notes'];
+function addRow(d={desc:'',qty:1,rate:0}){const tr=document.createElement('tr');tr.innerHTML=`<td><input class="d"></td><td><input class="q" type="number" step="any"></td><td><input class="r" type="number" step="any"></td><td class="a">0.00</td><td class="noprint"><button onclick="this.closest('tr').remove();calc()">x</button></td>`;tr.querySelector('.d').value=d.desc;tr.querySelector('.q').value=d.qty;tr.querySelector('.r').value=d.rate;tr.oninput=calc;$('items').appendChild(tr);calc()}
+function calc(){let s=0;document.querySelectorAll('#items tr').forEach(tr=>{const a=(+tr.querySelector('.q').value||0)*(+tr.querySelector('.r').value||0);tr.querySelector('.a').textContent=a.toFixed(2);s+=a});const t=s*(+$('tax').value||0)/100,c=$('cur').value;$('sub').textContent=c+s.toFixed(2);$('taxv').textContent=c+t.toFixed(2);$('total').textContent=c+(s+t).toFixed(2);save()}
+function save(){const o={items:[...document.querySelectorAll('#items tr')].map(tr=>({desc:tr.querySelector('.d').value,qty:tr.querySelector('.q').value,rate:tr.querySelector('.r').value}))};F.forEach(f=>o[f]=$(f).value);localStorage.setItem(K,JSON.stringify(o))}
+const o=JSON.parse(localStorage.getItem(K)||'null');if(o){F.forEach(f=>$(f).value=o[f]??'');o.items.forEach(addRow)}else{$('date').valueAsDate=new Date();addRow()}
+F.forEach(f=>$(f).addEventListener('input',save));
+</script></body></html>
