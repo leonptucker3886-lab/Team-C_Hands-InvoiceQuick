@@ -1,18 +1,73 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>InvoiceQuick</title>
-<style>body{font-family:system-ui,sans-serif;background:#FAFAF9;color:#18181B;max-width:860px;margin:2rem auto;padding:0 1rem}h1{color:#2A78D6}input,textarea,button{padding:.4rem;font-size:1rem;font:inherit}button{background:#2A78D6;color:#fff;border:0;border-radius:6px;cursor:pointer;padding:.5rem 1rem}.row{display:flex;gap:1rem;flex-wrap:wrap}.row>div{flex:1;min-width:240px}textarea{width:100%;height:70px}table{width:100%;border-collapse:collapse;margin:1rem 0}td,th{border-bottom:1px solid #DEDDD8;padding:.4rem;text-align:left}td input{width:100%}.tot{text-align:right;font-size:1.1rem}@media print{.noprint{display:none}input,textarea{border:0;resize:none}}</style></head><body>
-<h1>Invoice</h1>
-<div class="row"><div><label>Invoice # <input id="num" value="INV-001"></label></div><div><label>Date <input type="date" id="date"></label> <label>Due <input type="date" id="due"></label></div></div>
-<div class="row"><div><b>From</b><textarea id="from" placeholder="Your name / business, address"></textarea></div><div><b>Bill to</b><textarea id="to" placeholder="Client name, address"></textarea></div></div>
-<table><thead><tr><th>Description</th><th>Qty</th><th>Rate</th><th>Amount</th><th class="noprint"></th></tr></thead><tbody id="items"></tbody></table>
-<button class="noprint" onclick="addRow()">+ Add line</button>
-<div class="tot">Subtotal: <span id="sub">0.00</span><br>Tax % <input id="tax" type="number" value="0" style="width:60px" oninput="calc()"> : <span id="taxv">0.00</span><br><b>Total: <span id="total">0.00</span></b> <input id="cur" value="$" style="width:40px" oninput="calc()"></div>
-<b>Notes</b><textarea id="notes" placeholder="Payment terms, bank details"></textarea>
-<p class="noprint"><button onclick="window.print()">Export PDF</button> <button onclick="save()">Save</button> <button onclick="if(confirm('Clear?')){localStorage.removeItem(K);location.reload()}">New</button></p>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InvoiceQuick: Free Invoice Maker with PDF Export</title>
+<meta name="description" content="InvoiceQuick: make a professional invoice in a minute. Add your logo, line items, tax and discount, save invoices and clients, track paid status, export PDF or CSV. Data stays in your browser.">
+<meta property="og:title" content="InvoiceQuick: invoices in a minute"><meta property="og:description" content="Logo, tax, discount, saved clients, paid tracking, PDF export. No account, no ads."><meta property="og:type" content="website"><meta name="theme-color" content="#2A78D6">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧾</text></svg>">
+<style>
+body{font-family:system-ui,sans-serif;background:#FAFAF9;color:#18181B;max-width:900px;margin:1.5rem auto;padding:0 1rem}
+h1{color:#2A78D6;margin:.2rem 0}input,textarea,button,select{padding:.45rem;font:inherit;border:1px solid #DEDDD8;border-radius:6px;background:#fff;color:inherit}
+button{background:#2A78D6;color:#fff;border:0;cursor:pointer;padding:.5rem 1rem}.ghost{background:#fff;color:#18181B;border:1px solid #DEDDD8;cursor:pointer;padding:.45rem .8rem;border-radius:6px}
+.row{display:flex;gap:1rem;flex-wrap:wrap;margin:.6rem 0}.row>div{flex:1;min-width:240px}textarea{width:100%;height:72px;box-sizing:border-box}
+table{width:100%;border-collapse:collapse;margin:1rem 0}td,th{border-bottom:1px solid #DEDDD8;padding:.4rem;text-align:left}td input{width:100%;box-sizing:border-box}
+.tot{text-align:right;line-height:2}.bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:.6rem 0}
+#logo{max-height:70px;max-width:200px;display:none}.paid{display:none;color:#008300;border:3px solid #008300;border-radius:8px;padding:.2rem .8rem;font-weight:800;transform:rotate(-8deg)}
+.hist td{font-size:.92rem}.tag{font-size:.75rem;padding:2px 6px;border-radius:4px;background:#eee}.tag.p{background:#d8f0d8;color:#006400}.tag.o{background:#fde2e2;color:#a00}
+footer{margin:2rem 0 1rem;font-size:.85rem;opacity:.75;text-align:center}
+@media print{.noprint{display:none!important}input,textarea,select{border:0;resize:none;background:none}body{margin:0}}
+</style></head><body>
+<div class="bar noprint"><b style="color:#2A78D6">InvoiceQuick</b><span style="flex:1"></span>
+<button onclick="newInv()">+ New invoice</button><button class="ghost" onclick="dup()">Duplicate</button><button class="ghost" onclick="window.print()">Export PDF</button><button class="ghost" onclick="csv()">Export CSV</button><button class="ghost" onclick="backup()">Backup</button><label class="ghost">Restore<input type="file" accept=".json" hidden onchange="restore(this)"></label></div>
+<div class="row"><div><img id="logo" alt="Logo"><h1>Invoice</h1><span class="paid" id="paidStamp">PAID</span></div>
+<div style="text-align:right"><label>Invoice # <input id="num"></label><br><label>Date <input type="date" id="date"></label><br><label>Due <input type="date" id="due"></label>
+<div class="noprint" style="margin-top:.4rem"><label>Terms <select id="terms"><option value="">Custom</option><option value="0">On receipt</option><option value="7">Net 7</option><option value="15">Net 15</option><option value="30">Net 30</option></select></label>
+<label><input type="checkbox" id="isPaid"> Paid</label> <label class="ghost">Logo<input type="file" accept="image/*" hidden onchange="setLogo(this)"></label> <button class="ghost" onclick="clearLogo()">x</button></div></div></div>
+<div class="row"><div><b>From</b><textarea id="from" placeholder="Your name / business, address, email"></textarea></div>
+<div><b>Bill to</b> <select id="clientPick" class="noprint" onchange="pickClient()"><option value="">Saved clients…</option></select><textarea id="to" placeholder="Client name, address, email"></textarea></div></div>
+<table><thead><tr><th style="width:50%">Description</th><th>Qty</th><th>Rate</th><th>Amount</th><th class="noprint"></th></tr></thead><tbody id="items"></tbody></table>
+<button class="noprint" onclick="addRow();calc()">+ Add line</button>
+<div class="tot">Subtotal: <span id="sub">0.00</span><br>
+Discount % <input id="disc" type="number" min="0" value="0" style="width:64px"> : -<span id="discv">0.00</span><br>
+Tax % <input id="tax" type="number" min="0" value="0" style="width:64px"> : <span id="taxv">0.00</span><br>
+Shipping <input id="ship" type="number" min="0" value="0" style="width:80px"><br>
+<b style="font-size:1.2rem">Total: <span id="total">0.00</span></b> <select id="cur"><option>$</option><option>€</option><option>£</option><option>₪</option><option>C$</option><option>A$</option><option>¥</option><option>₹</option></select></div>
+<b>Notes / payment details</b><textarea id="notes" placeholder="Payment terms, bank details, PayPal, thank-you note"></textarea>
+<div class="noprint"><h3>Saved invoices</h3><p id="summary"></p>
+<table class="hist"><thead><tr><th>#</th><th>Client</th><th>Date</th><th>Due</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody id="hist"></tbody></table></div>
+<footer class="noprint">Your invoices are stored only in this browser. Use Backup to keep a copy. · InvoiceQuick by <a href="https://www.leonlink.net" style="color:#2A78D6">LeonLink</a></footer>
 <script>
-const K='invoicequick.v1',$=i=>document.getElementById(i),F=['num','date','due','from','to','tax','cur','notes'];
-function addRow(d={desc:'',qty:1,rate:0}){const tr=document.createElement('tr');tr.innerHTML=`<td><input class="d"></td><td><input class="q" type="number" step="any"></td><td><input class="r" type="number" step="any"></td><td class="a">0.00</td><td class="noprint"><button onclick="this.closest('tr').remove();calc()">x</button></td>`;tr.querySelector('.d').value=d.desc;tr.querySelector('.q').value=d.qty;tr.querySelector('.r').value=d.rate;tr.oninput=calc;$('items').appendChild(tr);calc()}
-function calc(){let s=0;document.querySelectorAll('#items tr').forEach(tr=>{const a=(+tr.querySelector('.q').value||0)*(+tr.querySelector('.r').value||0);tr.querySelector('.a').textContent=a.toFixed(2);s+=a});const t=s*(+$('tax').value||0)/100,c=$('cur').value;$('sub').textContent=c+s.toFixed(2);$('taxv').textContent=c+t.toFixed(2);$('total').textContent=c+(s+t).toFixed(2);save()}
-function save(){const o={items:[...document.querySelectorAll('#items tr')].map(tr=>({desc:tr.querySelector('.d').value,qty:tr.querySelector('.q').value,rate:tr.querySelector('.r').value}))};F.forEach(f=>o[f]=$(f).value);localStorage.setItem(K,JSON.stringify(o))}
-const o=JSON.parse(localStorage.getItem(K)||'null');if(o){F.forEach(f=>$(f).value=o[f]??'');o.items.forEach(addRow)}else{$('date').valueAsDate=new Date();addRow()}
-F.forEach(f=>$(f).addEventListener('input',save));
+const K='invoicequick.v2',OLD='invoicequick.v1',$=i=>document.getElementById(i),F=['num','date','due','terms','from','to','disc','tax','ship','cur','notes'];
+let db=JSON.parse(localStorage.getItem(K)||'null')||{invoices:[],cur:null,profile:{},logo:''};
+const old=JSON.parse(localStorage.getItem(OLD)||'null');if(old&&!db.invoices.length){old.id=Date.now()+'';db.invoices.push(old);db.cur=old.id;localStorage.removeItem(OLD)}
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const today=()=>new Date().toISOString().slice(0,10),addDays=(d,n)=>{const x=new Date(d+'T00:00');x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)};
+function nextNum(){let m=0;db.invoices.forEach(i=>{const n=parseInt(String(i.num).replace(/\D/g,''))||0;if(n>m)m=n});return 'INV-'+String(m+1).padStart(3,'0')}
+function blank(){const p=db.profile;return{id:Date.now()+'',num:nextNum(),date:today(),due:addDays(today(),15),terms:'15',from:p.from||'',to:'',disc:0,tax:p.tax||0,ship:0,cur:p.cur||'$',notes:p.notes||'',items:[{desc:'',qty:1,rate:0}],paid:false}}
+const cur=()=>db.invoices.find(i=>i.id===db.cur);
+function addRow(d={desc:'',qty:1,rate:0}){const tr=document.createElement('tr');tr.innerHTML='<td><input class="d" placeholder="Service or product"></td><td><input class="q" type="number" step="any"></td><td><input class="r" type="number" step="any"></td><td class="a">0.00</td><td class="noprint"><button class="ghost" onclick="this.closest(\'tr\').remove();calc()">x</button></td>';tr.querySelector('.d').value=d.desc;tr.querySelector('.q').value=d.qty;tr.querySelector('.r').value=d.rate;tr.oninput=calc;$('items').appendChild(tr)}
+function totals(o){const s=(o.items||[]).reduce((a,i)=>a+(+i.qty||0)*(+i.rate||0),0),dv=s*(+o.disc||0)/100,tv=(s-dv)*(+o.tax||0)/100;return{s,dv,tv,t:s-dv+tv+(+o.ship||0)}}
+function read(){const o=cur();F.forEach(f=>o[f]=$(f).value);o.paid=$('isPaid').checked;o.items=[...document.querySelectorAll('#items tr')].map(tr=>({desc:tr.querySelector('.d').value,qty:tr.querySelector('.q').value,rate:tr.querySelector('.r').value}));return o}
+function calc(){const o=read(),c=o.cur,x=totals(o);document.querySelectorAll('#items tr').forEach(tr=>tr.querySelector('.a').textContent=((+tr.querySelector('.q').value||0)*(+tr.querySelector('.r').value||0)).toFixed(2));
+$('sub').textContent=c+x.s.toFixed(2);$('discv').textContent=c+x.dv.toFixed(2);$('taxv').textContent=c+x.tv.toFixed(2);$('total').textContent=c+x.t.toFixed(2);$('paidStamp').style.display=o.paid?'inline-block':'none';
+db.profile={from:o.from,cur:o.cur,tax:o.tax,notes:o.notes};save();hist()}
+function save(){try{localStorage.setItem(K,JSON.stringify(db))}catch(e){alert('Storage is full. Try a smaller logo image.')}}
+function load(id){db.cur=id;const o=cur();F.forEach(f=>$(f).value=o[f]??'');$('isPaid').checked=!!o.paid;$('items').innerHTML='';(o.items||[]).forEach(r=>addRow(r));calc();clients()}
+function newInv(){if(cur())read();const o=blank();db.invoices.push(o);load(o.id);scrollTo(0,0)}
+function dup(){const o=JSON.parse(JSON.stringify(read()));o.id=Date.now()+'';o.num=nextNum();o.date=today();o.due=addDays(today(),+o.terms||15);o.paid=false;db.invoices.push(o);load(o.id);scrollTo(0,0)}
+function del(id){if(!confirm('Delete this invoice?'))return;db.invoices=db.invoices.filter(i=>i.id!==id);if(!db.invoices.length)db.invoices.push(blank());if(db.cur===id)load(db.invoices[db.invoices.length-1].id);else{save();hist()}}
+function status(o){if(o.paid)return'<span class="tag p">Paid</span>';if(o.due&&o.due<today())return'<span class="tag o">Overdue</span>';return'<span class="tag">Unpaid</span>'}
+function hist(){let owed=0,paid=0;const rows=[...db.invoices].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(o=>{const t=totals(o).t;o.paid?paid+=t:owed+=t;return`<tr${o.id===db.cur?' style="background:#eef4fc"':''}><td>${esc(o.num)}</td><td>${esc((o.to||'').split('\n')[0])}</td><td>${esc(o.date)}</td><td>${esc(o.due)}</td><td>${esc(o.cur)}${t.toFixed(2)}</td><td>${status(o)}</td><td><button class="ghost" onclick="read();load('${o.id}');scrollTo(0,0)">Open</button> <button class="ghost" onclick="del('${o.id}')">x</button></td></tr>`});
+$('hist').innerHTML=rows.join('');const c=db.profile.cur||'$';$('summary').textContent=`${db.invoices.length} invoice(s) · Outstanding ${c}${owed.toFixed(2)} · Paid ${c}${paid.toFixed(2)}`}
+function clients(){const s=[...new Set(db.invoices.map(i=>(i.to||'').trim()).filter(Boolean))];$('clientPick').innerHTML='<option value="">Saved clients…</option>'+s.map((c,i)=>`<option value="${i}">${esc(c.split('\n')[0])}</option>`).join('');$('clientPick')._list=s}
+function pickClient(){const v=$('clientPick').value;if(v!=='')$('to').value=$('clientPick')._list[v];$('clientPick').value='';calc()}
+function showLogo(){const l=$('logo');if(db.logo){l.src=db.logo;l.style.display='block'}else l.style.display='none'}
+function setLogo(inp){const f=inp.files[0];if(!f)return;const img=new Image(),r=new FileReader();r.onload=e=>{img.onload=()=>{const c=document.createElement('canvas'),k=Math.min(1,300/img.width,120/img.height);c.width=img.width*k;c.height=img.height*k;c.getContext('2d').drawImage(img,0,0,c.width,c.height);db.logo=c.toDataURL('image/png');save();showLogo()};img.src=e.target.result};r.readAsDataURL(f)}
+function clearLogo(){db.logo='';save();showLogo()}
+function dl(name,data,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click()}
+function csv(){read();const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',h=['Number','Client','Date','Due','Subtotal','Discount','Tax','Shipping','Total','Currency','Status'];
+dl('invoices.csv',[h.join(',')].concat(db.invoices.map(o=>{const x=totals(o);return[o.num,(o.to||'').split('\n')[0],o.date,o.due,x.s.toFixed(2),x.dv.toFixed(2),x.tv.toFixed(2),(+o.ship||0).toFixed(2),x.t.toFixed(2),o.cur,o.paid?'Paid':(o.due<today()?'Overdue':'Unpaid')].map(q).join(',')})).join('\n'),'text/csv')}
+function backup(){read();save();dl('invoicequick-backup.json',JSON.stringify(db),'application/json')}
+function restore(inp){const f=inp.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!Array.isArray(d.invoices))throw 0;db=d;save();load(db.cur||db.invoices[0].id)}catch(e){alert('Not a valid InvoiceQuick backup.')}})}
+$('terms').addEventListener('change',()=>{const v=$('terms').value;if(v!=='')$('due').value=addDays($('date').value||today(),+v);calc()});
+F.forEach(f=>{if(f!=='terms')$(f).addEventListener('input',calc)});$('isPaid').addEventListener('change',calc);
+if(!db.invoices.length)db.invoices.push(blank());showLogo();load(cur()?db.cur:db.invoices[db.invoices.length-1].id);
 </script></body></html>
