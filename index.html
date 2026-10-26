@@ -14,7 +14,7 @@ table{width:100%;border-collapse:collapse;margin:1rem 0}td,th{border-bottom:1px 
 .hist td{font-size:.92rem}.tag{font-size:.75rem;padding:2px 6px;border-radius:4px;background:#eee}.tag.p{background:#d8f0d8;color:#006400}.tag.o{background:#fde2e2;color:#a00}
 footer{margin:2rem 0 1rem;font-size:.85rem;opacity:.75;text-align:center}
 @media print{.noprint{display:none!important}input,textarea,select{border:0;resize:none;background:none}body{margin:0}}
-</style></head><body>
+</style></head><body><div role="note" style="background:#FFF4CC;color:#18181B;border-bottom:1px solid #E5C100;padding:10px 16px;text-align:center;font:14px system-ui,sans-serif"><strong>Beta / testing:</strong> this app is still in testing. Features may change and data may be lost. Please back up anything important.</div>
 <div class="bar noprint"><b style="color:#2A78D6">InvoiceQuick</b><span style="flex:1"></span>
 <button onclick="newInv()">+ New invoice</button><button class="ghost" onclick="dup()">Duplicate</button><button class="ghost" onclick="window.print()">Export PDF</button><button class="ghost" onclick="csv()">Export CSV</button><button class="ghost" onclick="backup()">Backup</button><label class="ghost">Restore<input type="file" accept=".json" hidden onchange="restore(this)"></label></div>
 <div class="row"><div><img id="logo" alt="Logo"><h1>Invoice</h1><span class="paid" id="paidStamp">PAID</span></div>
